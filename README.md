@@ -1,23 +1,62 @@
-# Géneros + Kafka + PostgreSQL
+# Géneros + Kafka + PostgreSQL + Firebase
 
-Programa en Python que pide el género (F/M), muestra el broker de Kafka, envía el mensaje al topic `generos` y lo guarda en PostgreSQL. Todo corre en Docker.
+Arquitectura de mensajería desacoplada usando Apache Kafka, PostgreSQL y Firebase Firestore.
 
-## Ejecutar
+## Estructura de la Arquitectura
 
-```bash
-docker compose up -d postgres kafka
-docker compose run --rm app
-```
+- **Productor (`producer.py`)**: Interfaz interactiva por consola. Captura el género (`Femenino` / `Masculino`) y envía el evento al topic de Kafka `generos`.
+- **Broker (Apache Kafka)**: Recibe y almacena los mensajes de los eventos en el topic `generos`.
+- **Consumidor (`consumer.py`)**: Servicio en segundo plano. Escucha continuamente el topic `generos` y, por cada evento recibido, lo guarda en **PostgreSQL** y en **Firebase Firestore**.
 
-Para ver lo guardado en la base de datos:
+---
 
-```bash
-docker compose exec postgres psql -U postgres -d generosdb -c "SELECT * FROM generos;"
-```
+## Cómo Ejecutar con Docker
 
-Para apagar todo:
+1. **Colocar la llave de Firebase:**
+   Descarga la clave de servicio de Firebase / Google Cloud, nómbrala `firebase-key.json` y colócala en esta carpeta raíz del proyecto.
 
-```bash
-docker compose down        # conserva los datos
-docker compose down -v     # borra también los datos
-```
+2. **Levantar la infraestructura y el Consumidor:**
+   ```bash
+   docker compose up -d postgres kafka consumer
+   ```
+
+3. **Ver los logs del Consumidor en tiempo real:**
+   ```bash
+   docker compose logs -f consumer
+   ```
+
+4. **Ejecutar el Productor interactivo:**
+   En otra terminal:
+   ```bash
+   docker compose run --rm producer
+   ```
+
+5. **Consultar los registros guardados en PostgreSQL:**
+   ```bash
+   docker compose exec postgres psql -U postgres -d generosdb -c "SELECT * FROM generos;"
+   ```
+
+6. **Detener los servicios:**
+   ```bash
+   docker compose down        # Conserva datos
+   docker compose down -v     # Borra datos de los volúmenes
+   ```
+
+---
+
+## Cómo Ejecutar en Local (Sin Docker)
+
+1. Tener activos Kafka en `localhost:29092` y PostgreSQL en `localhost:5433`.
+2. Definir la variable de Firebase:
+   - En PowerShell:
+     ```powershell
+     $env:GOOGLE_APPLICATION_CREDENTIALS = "$PWD\firebase-key.json"
+     ```
+3. En una terminal, ejecutar el consumidor:
+   ```powershell
+   python consumer.py
+   ```
+4. En otra terminal, ejecutar el productor:
+   ```powershell
+   python producer.py
+   ```

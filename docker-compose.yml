@@ -2,28 +2,31 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: generosdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-generosdb}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d generosdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-generosdb}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   kafka:
     image: apache/kafka:3.8.0
+    ports:
+      - "29092:29092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -36,8 +39,20 @@ services:
       timeout: 10s
       retries: 10
 
-  app:
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cluster-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  consumer:
     build: .
+    command: ["python", "-u", "consumer.py"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,12 +60,28 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
-      KAFKA_TOPIC: generos
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-generos}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-generos-consumer-group}
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_NAME: generosdb
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_NAME: ${DB_NAME:-generosdb}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/firebase-key.json
+      FIRESTORE_COLLECTION: ${FIRESTORE_COLLECTION:-generos}
+    volumes:
+      - ./firebase-key.json:/secrets/firebase-key.json:ro
+    restart: unless-stopped
+
+  producer:
+    build: .
+    command: ["python", "-u", "producer.py"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-generos}
     stdin_open: true
     tty: true
 

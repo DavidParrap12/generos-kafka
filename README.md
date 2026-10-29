@@ -4,7 +4,7 @@ Arquitectura de mensajería desacoplada usando Apache Kafka, PostgreSQL y Fireba
 
 ## Estructura de la Arquitectura
 
-- **Productor (`producer.py`)**: Interfaz interactiva por consola. Captura el género (`Femenino` / `Masculino`) y envía el evento al topic de Kafka `generos`.
+- **Productor (`producer.py`)**: Interfaz interactiva por consola. Muestra géneros sugeridos (`Femenino`, `Masculino`, `No binario`, `Otro`, `Prefiero no decirlo`) y permite elegir uno por número o **escribir cualquier otro género libremente**. Envía el evento al topic de Kafka `generos`.
 - **Broker (Apache Kafka)**: Recibe y almacena los mensajes de los eventos en el topic `generos`.
 - **Consumidor (`consumer.py`)**: Servicio en segundo plano. Escucha continuamente el topic `generos` y, por cada evento recibido, lo guarda en **PostgreSQL** y en **Firebase Firestore**.
 
@@ -30,6 +30,8 @@ Arquitectura de mensajería desacoplada usando Apache Kafka, PostgreSQL y Fireba
    ```bash
    docker compose run --rm producer
    ```
+   Verás las opciones sugeridas: puedes escribir el número de una opción o teclear cualquier otro género (por ejemplo, `Binario`). Para salir, escribe `S`.
+   Las opciones se pueden cambiar desde `.env` con `GENEROS_SUGERIDOS=Opcion1,Opcion2,Opcion3`.
 
 5. **Consultar los registros guardados en PostgreSQL:**
    ```bash

@@ -25,6 +25,16 @@ DB_CONFIG = {
 
 FIRESTORE_COLLECTION = os.getenv("FIRESTORE_COLLECTION", "generos")
 
+# Opciones sugeridas; el usuario también puede escribir cualquier otro género.
+GENEROS_SUGERIDOS = [
+    genero.strip()
+    for genero in os.getenv(
+        "GENEROS_SUGERIDOS",
+        "Femenino,Masculino,No binario,Otro,Prefiero no decirlo",
+    ).split(",")
+    if genero.strip()
+]
+
 
 def conectar_firestore():
     """Usa la cuenta de servicio indicada o el archivo local ./firebase-key.json."""
@@ -114,14 +124,35 @@ def mostrar_broker(admin):
     print("--------------------\n")
 
 
+def mostrar_opciones():
+    """Muestra las opciones sugeridas una sola vez al iniciar."""
+    print("\nGéneros sugeridos:")
+    for i, genero in enumerate(GENEROS_SUGERIDOS, 1):
+        print(f"  {i}. {genero}")
+    print("  También puedes escribir cualquier otro género (por ejemplo: 'Binario').\n")
+
+
 def pedir_genero():
     while True:
-        valor = input("Digite el género que desee (o 'S' para salir): ").strip()
+        valor = input("Elige un número o escribe el género que desees (o 'S' para salir): ").strip()
         if not valor:
             print("El género no puede estar vacío.")
             continue
+        if len(valor) > 100:
+            print("El género no puede superar los 100 caracteres.")
+            continue
         if valor.upper() == "S":
             return None
+        if valor.isdigit():
+            indice = int(valor)
+            if 1 <= indice <= len(GENEROS_SUGERIDOS):
+                return GENEROS_SUGERIDOS[indice - 1]
+            print(
+                f"Opción inválida. Elige un número entre 1 y {len(GENEROS_SUGERIDOS)} "
+                "o escribe el género que desees."
+            )
+            continue
+        # Texto libre: se acepta cualquier género, aunque no esté en la lista.
         return valor
 
 
@@ -139,6 +170,7 @@ def main():
     conn = esperar("PostgreSQL", conectar_db)
     admin, producer = esperar("Kafka", conectar_kafka)
     fs = conectar_firestore()
+    mostrar_opciones()
 
     while True:
         genero = pedir_genero()

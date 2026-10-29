@@ -82,6 +82,7 @@ services:
     environment:
       KAFKA_BOOTSTRAP: kafka:9092
       KAFKA_TOPIC: ${KAFKA_TOPIC:-generos}
+      GENEROS_SUGERIDOS: "${GENEROS_SUGERIDOS:-Femenino,Masculino,No binario,Otro,Prefiero no decirlo}"
     stdin_open: true
     tty: true
 
